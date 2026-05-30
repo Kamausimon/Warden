@@ -20,8 +20,14 @@ func run() {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("run: error starting command: %v\n", err)
+		return
+	}
+	if err := SetupCgroup(cmd.Process.Pid); err != nil {
+		fmt.Printf("run: error setting up cgroup: %v\n", err)
+	}
+	if err := cmd.Wait(); err != nil {
 		fmt.Printf("run: error running command: %v\n", err)
 	}
 }
