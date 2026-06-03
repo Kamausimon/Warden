@@ -79,9 +79,19 @@ func setupContainerNetwork(childPid int) error {
 }
 
 func setupHostNAT(bridgeSubnet string) error {
+
+	checkCmd := exec.Command("iptables", "-t", "nat", "-C", "POSTROUTING", "-s", bridgeSubnet, "!", "-o", "warden0", "-j", "MASQUERADE")
+
+	if err := checkCmd.Run(); err == nil {
+		fmt.Println("run: Host NAT masquerade rule already exists, skipping to prevent duplicates.")
+		return nil
+	}
+
 	cmd := exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-s", bridgeSubnet, "!", "-o", "warden0", "-j", "MASQUERADE")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("error setting up NAT: %v", err)
 	}
+
+	fmt.Println("run: Host NAT masquerade rule applied successfully.")
 	return nil
 }
