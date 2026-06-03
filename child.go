@@ -3,12 +3,39 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 )
 
+func configureChildNetworkInside() {
+
+	if err := exec.Command("ip", "link", "set", "lo", "up").Run(); err != nil {
+		fmt.Printf("child: error bringing up loopback: %v\n", err)
+	}
+
+	if err := exec.Command("ip", "addr", "add", "172.20.0.10/24", "dev", "veth1").Run(); err != nil {
+		fmt.Printf("child: error assigning IP to veth1: %v\n", err)
+		return
+	}
+
+	if err := exec.Command("ip", "link", "set", "veth1", "up").Run(); err != nil {
+		fmt.Printf("child: error bringing veth1 up: %v\n", err)
+		return
+	}
+
+	if err := exec.Command("ip", "route", "add", "default", "via", "172.20.0.1").Run(); err != nil {
+		fmt.Printf("child: error setting default gateway: %v\n", err)
+		return
+	}
+}
+
 func child() {
-	newroot := "/tmp/warden-rootfs"
+	syncPipe := os.NewFile(3, "sync_pipe")
+	buf := make([]byte, 1)
+	_, _ = syncPipe.Read(buf)
+	syncPipe.Close()
+	newroot := "/home/kamausimon/warden-rootfs"
 
 	err := syscall.Mount("", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, "")
 	if err != nil {
@@ -54,6 +81,7 @@ func child() {
 		return
 	}
 	syscall.Sethostname([]byte("container"))
+	configureChildNetworkInside()
 
 	fmt.Printf("The PID of the current running child %v", os.Getpid())
 
