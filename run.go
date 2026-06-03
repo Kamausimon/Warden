@@ -9,7 +9,15 @@ import (
 
 func run() {
 
-	fmt.Printf("run: running as child process\n")
+	fmt.Printf("run: spawning container process\n")
+
+	rPipe, wPipe, err := os.Pipe()
+	if err != nil {
+		fmt.Printf("run: error creating pipe: %v\n", err)
+		return
+	}
+	defer rPipe.Close()
+	defer wPipe.Close()
 	cmd := exec.Command("/proc/self/exe", "child")
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -21,6 +29,8 @@ func run() {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.ExtraFiles = []*os.File{rPipe}
+
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("run: error starting command: %v\n", err)
 		return
@@ -32,6 +42,7 @@ func run() {
 	if err := setupContainerNetwork(cmd.Process.Pid); err != nil {
 		fmt.Printf("run: error setting up network: %v\n", err)
 	}
+	wPipe.Close()
 
 	if err := cmd.Wait(); err != nil {
 		fmt.Printf("run: error running command: %v\n", err)

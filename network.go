@@ -25,12 +25,15 @@ func setupContainerNetwork(childPid int) error {
 		if err != nil {
 			return fmt.Errorf("error retrieving bridge link: %v", err)
 		}
+
+		addr, _ := netlink.ParseAddr(bridgeIP)
+		if err := netlink.AddrAdd(brLink, addr); err != nil {
+			return fmt.Errorf("error adding IP address to bridge: %v", err)
+		}
+	} else {
+		fmt.Printf("Bridge %s already exists, skipping creation\n", bridgeName)
 	}
 
-	addr, _ := netlink.ParseAddr(bridgeIP)
-	if err := netlink.AddrAdd(brLink, addr); err != nil {
-		return fmt.Errorf("error adding IP address to bridge: %v", err)
-	}
 	if err := netlink.LinkSetUp(brLink); err != nil {
 		return fmt.Errorf("error setting up bridge: %v", err)
 	}
@@ -50,6 +53,7 @@ func setupContainerNetwork(childPid int) error {
 	if err != nil {
 		return fmt.Errorf("error retrieving host veth link: %v", err)
 	}
+
 	vethContainerLink, err := netlink.LinkByName(containerVeth)
 	if err != nil {
 		return fmt.Errorf("error retrieving container veth link: %v", err)
